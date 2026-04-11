@@ -1,0 +1,27 @@
+[Unit]
+Description=摔倒检测系统 - Docker Compose 服务
+Documentation=https://github.com/nanfeng2021/fall-detection-system
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/root/.openclaw/workspace/projects/fall-detection-system
+
+# 启动服务
+ExecStart=/usr/local/bin/docker-compose up -d
+
+# 停止服务
+ExecStop=/usr/local/bin/docker-compose down
+
+# 重启服务
+ExecReload=/usr/local/bin/docker-compose restart
+
+# 超时设置
+TimeoutStartSec=300
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

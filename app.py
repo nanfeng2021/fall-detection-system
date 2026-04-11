@@ -413,7 +413,7 @@ with tab1:
                     aspectmode='data'
                 ),
                 height=600,
-                title="系统未运行 - 点击"启动"开始监测"
+                title="系统未运行 - 点击启动开始监测"
             )
             
             chart_placeholder.plotly_chart(fig, use_container_width=True)

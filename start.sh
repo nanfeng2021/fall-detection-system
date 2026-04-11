@@ -18,9 +18,10 @@ fi
 # 检查虚拟环境
 echo ""
 echo "2️⃣  检查虚拟环境..."
-if [ ! -d "venv" ]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ ! -d "$SCRIPT_DIR/venv" ]; then
     echo "📦 创建虚拟环境..."
-    python3 -m venv venv
+    cd "$SCRIPT_DIR" && python3 -m venv venv
     echo "✅ 虚拟环境已创建"
 else
     echo "✅ 虚拟环境已存在"
@@ -29,7 +30,7 @@ fi
 # 激活虚拟环境
 echo ""
 echo "3️⃣  激活虚拟环境..."
-source venv/bin/activate
+cd "$SCRIPT_DIR" && source venv/bin/activate
 echo "✅ 虚拟环境已激活"
 
 # 安装依赖
