@@ -1,0 +1,32 @@
+# Python 依赖包
+
+# 核心科学计算
+numpy>=1.24.0
+scipy>=1.10.0
+
+# 点云处理
+open3d>=0.17.0
+
+# 深度学习
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# 可视化
+matplotlib>=3.7.0
+opencv-python>=4.8.0
+
+# UI 和 Demo
+streamlit>=1.25.0
+
+# 数据处理
+pandas>=2.0.0
+tqdm>=4.65.0
+
+# 配置和日志
+pyyaml>=6.0
+loguru>=0.7.0
+
+# 测试
+pytest>=7.4.0
+pytest-cov>=4.1.0
