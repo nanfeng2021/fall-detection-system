@@ -178,6 +178,55 @@ api:
     enabled: true
     requests_per_minute: 60
 
+# ==================== 认证配置 ====================
+auth:
+  # JWT 配置
+  jwt_secret: "your-secret-key-change-in-production"  # ⚠️ 生产环境务必修改
+  jwt_expire_minutes: 30
+  
+  # 会话配置
+  session:
+    max_sessions_per_user: 5
+    session_timeout_minutes: 60
+
+# ==================== 监控配置 ====================
+monitoring:
+  # Prometheus 指标端口
+  metrics_port: 9090
+  
+  # 健康检查
+  health_check:
+    enabled: true
+    interval_seconds: 30
+    
+  # 性能监控
+  performance:
+    enabled: true
+    log_slow_frames: true
+    slow_threshold_ms: 100
+
+# ==================== 通知配置 ====================
+notifications:
+  # 邮件通知
+  email:
+    enabled: false
+    smtp_server: "smtp.example.com"
+    smtp_port: 465
+    username: "your-email@example.com"
+    password: "your-password"
+    from_addr: "your-email@example.com"
+    to_addrs: ["admin@example.com"]
+  
+  # 企业微信通知
+  wechat:
+    enabled: false
+    # 方式 1: Webhook 机器人（推荐，简单）
+    webhook_url: ""
+    # 方式 2: 企业微信 API（需要更多配置）
+    corp_id: ""
+    corp_secret: ""
+    agent_id: 1000001
+
 # ==================== 数据存储配置 ====================
 storage:
   # 报警记录
@@ -185,6 +234,10 @@ storage:
     type: "json"                # json, sqlite
     file_path: "./data/alerts.json"
     max_records: 10000
+    
+  # 用户数据
+  users:
+    file_path: "./data/users.json"
     
   # 统计数据
   statistics:

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-FastAPI 主应用
-提供RESTful API接口
+FastAPI 主应用 - 集成认证和监控
+提供 RESTful API 接口
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
@@ -18,6 +18,12 @@ from .models import (
     HealthCheckResponse, StatisticsResponse
 )
 from .detection_service import DetectionService
+from .auth_routes import router as auth_router
+from ..auth.dependencies import get_current_user
+from ..monitoring.metrics import get_metrics
+from ..monitoring.alerter import get_alerter, AlertLevel
+from ..monitoring.notifiers import get_email_notifier, get_wechat_notifier
+from ..utils.config import get_config
 
 
 # 创建检测服务实例
@@ -28,25 +34,49 @@ detection_service = DetectionService()
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时
-    print("🚀 API服务启动...")
+    print("🚀 API 服务启动...")
     await detection_service.initialize()
+    
+    # 初始化监控告警系统
+    metrics = get_metrics()
+    alerter = get_alerter()
+    
+    # 注册告警回调（发送邮件和微信通知）
+    email_notifier = get_email_notifier()
+    wechat_notifier = get_wechat_notifier()
+    
+    def alert_callback(alert):
+        """告警触发时的回调"""
+        if alert.level == AlertLevel.CRITICAL:
+            # 严重告警同时发送邮件和微信
+            if email_notifier:
+                email_notifier.send_alert(alert)
+            if wechat_notifier:
+                wechat_notifier.send_alert(alert)
+        elif alert.level == AlertLevel.ERROR:
+            # 错误只发送邮件
+            if email_notifier:
+                email_notifier.send_alert(alert)
+    
+    alerter.add_callback(alert_callback)
     
     yield
     
     # 关闭时
-    print("🛑 API服务关闭...")
+    print("🛑 API 服务关闭...")
     await detection_service.shutdown()
 
 
-# 创建FastAPI应用
+# 创建 FastAPI 应用
+config = get_config()
 app = FastAPI(
     title="GuardianFall API",
-    description="摔倒检测系统RESTful API",
-    version="1.0.0",
+    description="摔倒检测系统 RESTful API - 集成用户认证和监控告警",
+    version="1.1.0",
     lifespan=lifespan
 )
 
-# CORS中间件
+# CORS 中间件
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -56,221 +86,179 @@ app.add_middleware(
 )
 
 
-# ==================== 系统接口 ====================
+# ==================== 路由注册 ====================
 
-@app.get("/", response_model=Dict[str, str])
+# 认证相关路由
+app.include_router(auth_router)
+
+
+# ==================== 基础接口 ====================
+
+@app.get("/", tags=["根路径"])
 async def root():
-    """根路径"""
+    """API 根路径"""
     return {
         "name": "GuardianFall API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "status": "running",
-        "docs": "/docs"
+        "features": ["认证管理", "摔倒检测", "监控告警", "数据统计"]
     }
 
 
-@app.get("/health", response_model=HealthCheckResponse)
+@app.get("/health", response_model=HealthCheckResponse, tags=["健康检查"])
 async def health_check():
-    """健康检查"""
+    """健康检查接口"""
+    is_running = detection_service.is_running()
+    
+    metrics = get_metrics()
+    metrics.set_system_status(is_running)
+    
     return HealthCheckResponse(
-        status="healthy",
+        status="healthy" if is_running else "unhealthy",
         timestamp=datetime.now(),
-        uptime_seconds=detection_service.uptime_seconds,
-        version="1.0.0"
+        version="1.1.0"
     )
 
 
-@app.get("/status", response_model=SystemStatus)
-async def get_status():
-    """获取系统状态"""
-    return await detection_service.get_status()
+@app.get("/status", response_model=SystemStatus, tags=["系统状态"])
+async def get_status(current_user: dict = Depends(get_current_user)):
+    """获取系统运行状态（需要认证）"""
+    return detection_service.get_status()
 
 
-# ==================== 检测接口 ====================
+# ==================== 检测控制接口 ====================
 
-@app.post("/detection/start")
-async def start_detection(request: Optional[StartDetectionRequest] = None):
-    """启动检测"""
+@app.post("/detection/start", tags=["检测控制"])
+async def start_detection(
+    request: StartDetectionRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """启动检测（需要认证）"""
     try:
-        config = request.config if request else None
-        success = await detection_service.start(config)
-        
-        if success:
-            return {"success": True, "message": "检测已启动"}
-        else:
-            raise HTTPException(status_code=400, detail="检测启动失败")
-    
+        await detection_service.start(request.camera_id)
+        return {"message": "检测已启动", "camera_id": request.camera_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/detection/stop", response_model=StopDetectionResponse)
-async def stop_detection():
-    """停止检测"""
-    try:
-        success = await detection_service.stop()
-        
-        return StopDetectionResponse(
-            success=success,
-            message="检测已停止" if success else "检测未运行",
-            total_frames=detection_service.total_frames,
-            total_alerts=detection_service.total_alerts
-        )
+@app.post("/detection/stop", response_model=StopDetectionResponse, tags=["检测控制"])
+async def stop_detection(current_user: dict = Depends(get_current_user)):
+    """停止检测（需要认证）"""
+    success = await detection_service.stop()
+    return StopDetectionResponse(success=success)
+
+
+@app.get("/detection/status", tags=["检测控制"])
+async def detection_status(current_user: dict = Depends(get_current_user)):
+    """获取检测状态（需要认证）"""
+    return detection_service.get_status()
+
+
+# ==================== 监控告警接口 ====================
+
+@app.get("/alerts", tags=["监控告警"])
+async def get_alerts(
+    limit: int = Query(50, ge=1, le=500),
+    level: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """获取告警列表（需要认证）"""
+    alerter = get_alerter()
     
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    from .alerter import AlertLevel
+    alert_level = AlertLevel(level) if level else None
+    alerts = alerter.get_alert_history(limit=limit, level=alert_level)
+    
+    return {"alerts": [a.to_dict() for a in alerts]}
 
 
-@app.get("/detection/status")
-async def get_detection_status():
-    """获取检测状态"""
+@app.get("/alerts/active", tags=["监控告警"])
+async def get_active_alerts(current_user: dict = Depends(get_current_user)):
+    """获取活动告警（需要认证）"""
+    alerter = get_alerter()
+    alerts = alerter.get_active_alerts()
+    return {"alerts": [a.to_dict() for a in alerts]}
+
+
+@app.post("/alerts/{alert_id}/acknowledge", tags=["监控告警"])
+async def acknowledge_alert(
+    alert_id: float,
+    current_user: dict = Depends(get_current_user)
+):
+    """确认告警（需要认证）"""
+    alerter = get_alerter()
+    success = alerter.acknowledge(alert_id, current_user.username)
+    
+    if success:
+        return {"message": "告警已确认"}
+    else:
+        raise HTTPException(status_code=404, detail="告警不存在")
+
+
+@app.get("/alerts/statistics", tags=["监控告警"])
+async def get_alert_statistics(current_user: dict = Depends(get_current_user)):
+    """获取告警统计（需要认证）"""
+    alerter = get_alerter()
+    return alerter.get_statistics()
+
+
+# ==================== 监控指标接口 ====================
+
+@app.get("/metrics", tags=["监控指标"])
+async def get_metrics_info(current_user: dict = Depends(get_current_user)):
+    """获取监控指标（需要认证）"""
+    # Prometheus 指标通过 /metrics 端点暴露
+    # 这里返回指标概览
     return {
-        "is_running": detection_service.is_running,
-        "current_frame": detection_service.current_frame,
-        "fps": detection_service.current_fps,
-        "active_trackers": detection_service.active_trackers
+        "prometheus_endpoint": "/metrics",
+        "description": "Prometheus metrics available on port 9090"
     }
 
 
-# ==================== 数据接口 ====================
+# ==================== 用户管理接口 ====================
 
-@app.get("/frames/latest", response_model=Optional[FrameResult])
-async def get_latest_frame():
-    """获取最新帧"""
-    frame = await detection_service.get_latest_frame()
+@app.get("/users/me", tags=["用户管理"])
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+    """获取当前用户信息"""
+    from ..auth.auth_service import AuthService
+    auth_service = AuthService()
     
-    if frame is None:
-        raise HTTPException(status_code=404, detail="暂无帧数据")
+    user = auth_service.get_user_by_id(current_user.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
     
-    return frame
+    return user
 
 
-@app.get("/frames/{frame_id}", response_model=FrameResult)
-async def get_frame(frame_id: int):
-    """获取指定帧"""
-    frame = await detection_service.get_frame(frame_id)
-    
-    if frame is None:
-        raise HTTPException(status_code=404, detail=f"帧 {frame_id} 不存在")
-    
-    return frame
+# ==================== 错误处理 ====================
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    """HTTP 异常处理"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
 
 
-@app.get("/alerts", response_model=List[AlertInfo])
-async def get_alerts(
-    limit: int = Query(100, ge=1, le=1000),
-    level: Optional[str] = Query(None, regex="^(critical|warning|info)$")
-):
-    """获取报警列表"""
-    alerts = await detection_service.get_alerts(limit=limit, level=level)
-    return alerts
-
-
-@app.get("/alerts/stats")
-async def get_alert_stats():
-    """获取报警统计"""
-    return await detection_service.get_alert_stats()
-
-
-@app.delete("/alerts/clear")
-async def clear_alerts():
-    """清空报警记录"""
-    await detection_service.clear_alerts()
-    return {"success": True, "message": "报警记录已清空"}
-
-
-# ==================== 配置接口 ====================
-
-@app.get("/config", response_model=DetectionConfig)
-async def get_config():
-    """获取当前配置"""
-    return await detection_service.get_config()
-
-
-@app.put("/config")
-async def update_config(config: DetectionConfig):
-    """更新配置"""
-    try:
-        success = await detection_service.update_config(config)
-        
-        if success:
-            return {"success": True, "message": "配置已更新"}
-        else:
-            raise HTTPException(status_code=400, detail="配置更新失败")
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/config/reset")
-async def reset_config():
-    """重置配置为默认值"""
-    await detection_service.reset_config()
-    return {"success": True, "message": "配置已重置"}
-
-
-# ==================== 统计接口 ====================
-
-@app.get("/statistics", response_model=StatisticsResponse)
-async def get_statistics():
-    """获取系统统计"""
-    return await detection_service.get_statistics()
-
-
-@app.get("/statistics/fps/history")
-async def get_fps_history(
-    minutes: int = Query(5, ge=1, le=60)
-):
-    """获取FPS历史"""
-    return await detection_service.get_fps_history(minutes=minutes)
-
-
-# ==================== WebSocket 接口（实时数据）====================
-
-from fastapi import WebSocket, WebSocketDisconnect
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket实时数据流"""
-    await websocket.accept()
-    
-    try:
-        while True:
-            # 发送当前状态
-            status = await detection_service.get_status()
-            await websocket.send_json(status.dict())
-            
-            # 每秒更新一次
-            await asyncio.sleep(1)
-    
-    except WebSocketDisconnect:
-        print("WebSocket断开连接")
-    except Exception as e:
-        print(f"WebSocket错误: {e}")
-
-
-# 错误处理
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    """全局异常处理"""
+async def general_exception_handler(request, exc):
+    """通用异常处理"""
+    # 记录异常到监控系统
+    alerter = get_alerter()
+    alerter.trigger(
+        level=AlertLevel.ERROR,
+        message=f"API 异常：{str(exc)}",
+        source="api",
+        data={"path": str(request.url.path)}
+    )
+    
     return JSONResponse(
         status_code=500,
-        content={
-            "error": "Internal Server Error",
-            "message": str(exc),
-            "timestamp": datetime.now().isoformat()
-        }
+        content={"detail": "服务器内部错误"}
     )
 
 
-# 启动命令（用于直接运行）
 if __name__ == "__main__":
     import uvicorn
-    
-    uvicorn.run(
-        "src.api.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000)

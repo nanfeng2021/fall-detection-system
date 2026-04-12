@@ -1,0 +1,7 @@
+{
+  "voxel_size": 0.05,
+  "height_drop_threshold": 0.3,
+  "velocity_threshold": 0.5,
+  "confirmation_frames": 2,
+  "fps": 30.0
+}

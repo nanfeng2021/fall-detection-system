@@ -80,10 +80,10 @@ class FallDetectionSystem:
         voxel_size: float = 0.05,
         std_ratio: float = 2.0,
         distance_threshold: float = 0.05,
-        cluster_tolerance: float = 0.1,
-        height_drop_threshold: float = 0.5,
-        velocity_threshold: float = 1.0,
-        confirmation_frames: int = 3,
+        cluster_tolerance: float = 0.25,  # 增大到 0.25 以检测人体
+        height_drop_threshold: float = 0.3,
+        velocity_threshold: float = 0.5,
+        confirmation_frames: int = 2,
         fps: float = 30.0,
         alert_callback: Optional[Callable[[SystemAlert], None]] = None,
     ):

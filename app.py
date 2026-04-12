@@ -344,14 +344,18 @@ with tab1:
         chart_placeholder = st.empty()
         
         if st.session_state.running:
-            # 模拟实时处理
+            # 使用 Session State 追踪当前帧
+            if 'current_frame' not in st.session_state:
+                st.session_state.current_frame = 0
+            
             progress_bar = st.progress(0)
             status_text = st.empty()
+            alert_placeholder = st.empty()  # 专门的报警显示区域
             
-            frame_id = len(st.session_state.frame_history)
+            frame_id = st.session_state.current_frame
             
-            # 模拟摔倒逻辑
-            is_falling = frame_id >= 50 and frame_id < 80
+            # 模拟摔倒逻辑（从第 50 帧开始）
+            is_falling = frame_id >= 50
             
             # 生成点云
             pcd = generate_mock_point_cloud(frame_id, is_falling)
@@ -371,10 +375,7 @@ with tab1:
                 title=f"Frame {frame_id} - {'⚠️ 摔倒检测!' if is_falling else '✅ 正常'}"
             )
             
-            chart_placeholder.plotly_chart(fig, use_container_width=True)
-            
-            # 模拟处理延迟
-            time.sleep(0.033)  # ~30 FPS
+            chart_placeholder.plotly_chart(fig, use_container_width=True, key=f"frame_{frame_id}")
             
             # 更新帧历史
             st.session_state.frame_history.append({
@@ -389,16 +390,45 @@ with tab1:
             if len(st.session_state.frame_history) > 100:
                 st.session_state.frame_history.pop(0)
             
-            progress_bar.progress((frame_id % 100) / 100)
-            status_text.text(f"处理中... Frame {frame_id}")
+            # 添加报警记录（仅在第 50 帧和第 52 帧添加）
+            if frame_id == 50:
+                st.session_state.alert_history.append({
+                    'timestamp': datetime.now(),
+                    'level': 'warning',
+                    'message': '检测到疑似摔倒行为'
+                })
+            elif frame_id == 52:
+                st.session_state.alert_history.append({
+                    'timestamp': datetime.now(),
+                    'level': 'critical',
+                    'message': '确认摔倒！请立即查看！'
+                })
             
-            # 如果有摔倒，显示报警
-            if is_falling and len(st.session_state.alert_history) > 0:
+            progress_bar.progress((frame_id % 100) / 100)
+            status_text.text(f"🔄 处理中... Frame {frame_id} | 已运行：{len(st.session_state.frame_history)} 帧")
+            
+            # 显示报警（使用专用 placeholder，避免全页刷新）
+            if frame_id >= 50 and len(st.session_state.alert_history) > 0:
                 latest_alert = st.session_state.alert_history[-1]
                 if latest_alert['level'] == 'critical':
-                    st.error(f"🚨 **{latest_alert['message']}**")
+                    alert_placeholder.error(f"🚨 **{latest_alert['message']}**")
                 elif latest_alert['level'] == 'warning':
-                    st.warning(f"⚠️ **{latest_alert['message']}**")
+                    alert_placeholder.warning(f"⚠️ **{latest_alert['message']}**")
+            
+            # 增加帧计数
+            st.session_state.current_frame += 1
+            
+            # 限制到 100 帧
+            if frame_id < 100:
+                # 使用较短的延迟，减少等待感
+                time.sleep(0.05)  # 20 FPS，更流畅
+                
+                # 使用 JavaScript 自动刷新，避免完整页面重渲染
+                st.rerun()
+            else:
+                st.success("✅ 已播放 100 帧，点击 **重置** 按钮重新开始")
+                st.session_state.running = False
+                alert_placeholder.empty()
         
         else:
             # 显示静态示例图

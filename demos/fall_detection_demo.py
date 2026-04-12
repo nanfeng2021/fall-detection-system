@@ -44,28 +44,62 @@ def create_mock_cloud(frame_id: int, is_falling: bool = False) -> o3d.geometry.P
     Returns:
         点云对象
     """
-    np.random.seed(frame_id)
+    np.random.seed(frame_id + 42)  # 固定种子保证可重复性
     
-    # 地面 (1000 点)
-    ground_points = np.random.rand(1000, 3) * [5, 5, 0.05]
+    # 地面 (800 点) - 缩小范围让人体更突出
+    ground_points = np.random.rand(800, 3) * [4, 4, 0.02]
     ground_points[:, 2] = 0
     
-    # 人体 (500 点)
-    if is_falling:
-        # 摔倒：高度降低，宽度增加
-        height = max(0.4, 1.7 - (frame_id % 30) * 0.05)
-        width = 0.4 + (1.7 - height)
-        human_points = np.random.rand(500, 3) * [width, 0.4, height]
-        human_points[:, 2] += height / 2
-    else:
-        # 正常站立
-        height = 1.7
-        human_points = np.random.rand(500, 3) * [0.4, 0.4, height]
-        human_points[:, 2] += height / 2
+    # 人体中心位置 (放在场景中央)
+    human_center_x = 2.0
+    human_center_y = 2.0
     
-    # 添加一些噪声
-    noise = np.random.normal(0, 0.02, human_points.shape)
+    # 人体 (600 点) - 更密集的圆柱体
+    if is_falling:
+        # 摔倒：高度降低，宽度增加，躺在地上
+        progress = min(1.0, (frame_id - 50) / 10)  # 摔倒进度 0-1
+        height = 1.7 - progress * 1.3  # 从 1.7m 降到 0.4m
+        radius = 0.2 + progress * 0.4  # 从 0.2m 扩展到 0.6m
+        
+        # 生成圆柱体点云
+        theta = np.random.uniform(0, 2 * np.pi, 600)
+        r = np.sqrt(np.random.uniform(0, 1, 600)) * radius
+        h = np.random.uniform(0, 1, 600) * height
+        
+        human_points = np.column_stack([
+            r * np.cos(theta) + human_center_x,
+            r * np.sin(theta) + human_center_y,
+            h
+        ])
+        
+        # 摔倒时逐渐放倒
+        if progress > 0.5:
+            tilt_angle = (progress - 0.5) * np.pi / 2  # 最多倾斜 90 度
+            z_new = human_points[:, 2] * np.cos(tilt_angle)
+            y_new = human_points[:, 1] + human_points[:, 2] * np.sin(tilt_angle)
+            human_points[:, 2] = z_new
+            human_points[:, 1] = y_new
+    else:
+        # 正常站立：细长的圆柱体
+        height = 1.7
+        radius = 0.25
+        
+        theta = np.random.uniform(0, 2 * np.pi, 600)
+        r = np.sqrt(np.random.uniform(0, 1, 600)) * radius
+        h = np.random.uniform(0, 1, 600) * height
+        
+        human_points = np.column_stack([
+            r * np.cos(theta) + human_center_x,
+            r * np.sin(theta) + human_center_y,
+            h
+        ])
+    
+    # 添加少量噪声
+    noise = np.random.normal(0, 0.015, human_points.shape)
     human_points += noise
+    
+    # 确保人体在地面以上
+    human_points[:, 2] = np.maximum(human_points[:, 2], 0.01)
     
     # 合并
     all_points = np.vstack([ground_points, human_points])
