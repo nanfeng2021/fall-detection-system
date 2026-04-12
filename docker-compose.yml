@@ -4,12 +4,12 @@ version: '3.8'
 # 使用方式：docker-compose up -d
 
 services:
-  # 主应用服务
-  fall-detection:
+  # Web界面服务 (Streamlit)
+  web-ui:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fall-detection-system
+    container_name: fall-detection-web
     restart: unless-stopped
     
     # 端口映射
@@ -22,21 +22,81 @@ services:
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
       - STREAMLIT_SERVER_HEADLESS=true
       - LOG_LEVEL=INFO
-      - DETECTION_HEIGHT_THRESHOLD=0.3
-      - DETECTION_VELOCITY_THRESHOLD=0.5
-      - DETECTION_CONFIRMATION_FRAMES=2
+      - API_BASE_URL=http://api:8000
     
     # 数据卷挂载
     volumes:
       # 应用代码（开发模式，可热更新）
       - ./app.py:/app/app.py:ro
       - ./src:/app/src:ro
-      - ./requirements.txt:/app/requirements.txt:ro
+      - ./config.yaml:/app/config.yaml:ro
       
       # 持久化数据
       - ./datasets:/app/datasets
       - ./logs:/app/logs
-      - ./configs:/app/configs
+      - ./data:/app/data
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # 网络配置
+    networks:
+      - fall-detection-network
+    
+    # 依赖服务
+    depends_on:
+      - api
+      - redis
+
+  # API服务 (FastAPI)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: fall-detection-api
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "8000:8000"
+    
+    # 环境变量
+    environment:
+      - LOG_LEVEL=INFO
+      - DETECTION_HEIGHT_THRESHOLD=0.3
+      - DETECTION_VELOCITY_THRESHOLD=0.5
+      - DETECTION_CONFIRMATION_FRAMES=2
+      - REDIS_URL=redis://redis:6379
+    
+    # 数据卷挂载
+    volumes:
+      - ./src:/app/src:ro
+      - ./config.yaml:/app/config.yaml:ro
+      - ./datasets:/app/datasets
+      - ./logs:/app/logs
+      - ./data:/app/data
     
     # 资源限制
     deploy:
@@ -50,7 +110,7 @@ services:
     
     # 健康检查
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

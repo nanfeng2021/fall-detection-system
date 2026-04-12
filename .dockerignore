@@ -1,0 +1,73 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# 文档
+docs/_build/
+*.md
+!README.md
+
+# 数据（保留目录结构但不包含大文件）
+datasets/*/
+!datasets/.gitkeep
+logs/*
+!logs/.gitkeep
+data/*
+!data/.gitkeep
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+.DS_Store
+Thumbs.db
+
+# 其他
+.github/
+.qoder/
+*.service
+deploy.sh
+start.sh
+monitor.sh

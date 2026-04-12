@@ -1,0 +1,198 @@
+# GuardianFall 摔倒检测系统配置文件
+# 配置文件版本: 1.0.0
+
+# ==================== 系统配置 ====================
+system:
+  name: "GuardianFall"
+  version: "1.0.0"
+  debug: false
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_dir: "./logs"
+  
+# ==================== 数据采集配置 ====================
+data_capture:
+  # 相机配置
+  camera:
+    type: "azure_kinect"  # azure_kinect, mock
+    device_id: 0
+    depth_mode: "nfov_unbinned"  # nfov_unbinned, wfov_unbinned, nfov_binned
+    color_resolution: "off"  # off, 720p, 1080p
+    fps: 30
+    
+  # 录制配置
+  recording:
+    enabled: false
+    output_dir: "./datasets/recordings"
+    max_duration_seconds: 300
+    auto_save: true
+
+# ==================== 预处理配置 ====================
+preprocessing:
+  # 体素滤波
+  voxel_filter:
+    enabled: true
+    leaf_size: 0.05  # 米
+    
+  # 统计滤波
+  statistical_filter:
+    enabled: true
+    nb_neighbors: 20
+    std_ratio: 2.0
+    
+  # 半径滤波
+  radius_filter:
+    enabled: false
+    radius: 0.05
+    min_points: 10
+    
+  # 地面分割
+  ground_segmentation:
+    enabled: true
+    method: "plane"  # plane, ransac
+    distance_threshold: 0.05  # 米
+    max_iterations: 100
+    
+  # 聚类配置
+  clustering:
+    method: "euclidean"  # euclidean, dbscan
+    cluster_tolerance: 0.1  # 米
+    min_cluster_size: 50
+    max_cluster_size: 5000
+    
+  # 人体筛选
+  human_filter:
+    min_height: 0.5  # 米
+    max_height: 2.5  # 米
+    min_points: 50
+    min_aspect_ratio: 1.5
+
+# ==================== 摔倒检测配置 ====================
+detection:
+  # 规则引擎参数
+  rules:
+    height_drop_threshold: 0.3  # 高度骤降阈值（米）
+    velocity_threshold: 0.5     # 速度阈值（米/秒）
+    lying_aspect_ratio: 1.5     # 躺倒宽高比阈值
+    confirmation_frames: 2      # 确认摔倒所需连续帧数
+    
+  # 状态机配置
+  state_machine:
+    recovery_timeout_frames: 30  # 恢复超时帧数
+    false_alarm_timeout_frames: 10
+    
+  # 追踪配置
+  tracking:
+    max_history_frames: 30      # 最大历史帧数
+    cleanup_timeout_seconds: 5  # 清理超时时间
+    
+  # 置信度阈值
+  confidence:
+    min_confidence: 0.5         # 最小置信度
+    critical_threshold: 0.8     # 严重报警阈值
+
+# ==================== 报警配置 ====================
+alerts:
+  # 报警方式
+  methods:
+    - "web"      # Web界面显示
+    - "log"      # 日志记录
+    # - "webhook"  # HTTP回调
+    # - "email"    # 邮件通知
+    
+  # Webhook配置（可选）
+  webhook:
+    url: ""
+    timeout_seconds: 5
+    retry_count: 3
+    
+  # 报警抑制
+  suppression:
+    enabled: true
+    cooldown_seconds: 30        # 同一人员报警冷却时间
+    max_alerts_per_minute: 10   # 每分钟最大报警数
+
+# ==================== Web界面配置 ====================
+web:
+  # Streamlit配置
+  streamlit:
+    server_address: "0.0.0.0"
+    server_port: 8501
+    headless: true
+    max_upload_size_mb: 200
+    
+  # 界面配置
+  ui:
+    page_title: "摔倒检测系统"
+    refresh_rate_ms: 100        # 刷新间隔
+    max_history_frames: 100     # 最大历史帧数
+    chart_points_limit: 500     # 图表点数限制
+    
+  # 3D可视化
+  visualization:
+    point_size: 2
+    colorscale: "Viridis"
+    background_color: "white"
+    show_bounding_box: true
+
+# ==================== 性能优化配置 ====================
+performance:
+  # 并发配置
+  concurrency:
+    enabled: true
+    max_workers: 4              # 最大工作线程数
+    use_process_pool: false     # 使用进程池（CPU密集型）
+    
+  # 缓存配置
+  cache:
+    enabled: true
+    type: "memory"              # memory, redis
+    ttl_seconds: 60             # 缓存过期时间
+    max_size: 1000              # 最大缓存条目
+    
+  # 批处理
+  batch:
+    enabled: false
+    batch_size: 1               # 批处理大小
+    
+  # 内存管理
+  memory:
+    max_point_cloud_size: 100000  # 最大点云点数
+    cleanup_interval_seconds: 60
+
+# ==================== API配置 ====================
+api:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8000
+  prefix: "/api/v1"
+  
+  # CORS配置
+  cors:
+    enabled: true
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE"]
+    allow_headers: ["*"]
+    
+  # 限流
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+
+# ==================== 数据存储配置 ====================
+storage:
+  # 报警记录
+  alerts:
+    type: "json"                # json, sqlite
+    file_path: "./data/alerts.json"
+    max_records: 10000
+    
+  # 统计数据
+  statistics:
+    enabled: true
+    retention_days: 30
+    
+  # 数据集
+  datasets:
+    base_dir: "./datasets"
+    auto_cleanup: true
+    max_size_gb: 10
