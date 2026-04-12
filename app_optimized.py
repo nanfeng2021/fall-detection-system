@@ -238,7 +238,7 @@ else:
         if st.session_state.running:
             st.success("✅ 监控系统运行中")
         else:
-            st.info("ℹ️ 点击"启动监控"按钮开始")
+            st.info("ℹ️ 点击【启动监控】按钮开始")
         
         # 模拟点云可视化
         if st.session_state.running:
