@@ -13,7 +13,13 @@ import os
 
 from .models import User, UserRole, TokenData, LoginRequest, RegisterRequest
 from ..utils.config import get_config
-from ..utils.error_handler import handle_errors, AppException
+from ..utils.error_handler import handle_errors, FallDetectionError
+
+
+# 自定义异常
+class AppException(FallDetectionError):
+    """应用通用异常"""
+    pass
 
 
 # 配置
