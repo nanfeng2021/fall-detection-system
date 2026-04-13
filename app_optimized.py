@@ -154,6 +154,11 @@ if not st.session_state.authenticated:
                     if login(username, password):
                         st.rerun()
         
+        # 忘记密码链接
+        st.markdown("<div style='text-align: center; margin-top: 15px;'>", unsafe_allow_html=True)
+        st.link_button("🔑 忘记密码？", "/forgot_password")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
         st.markdown("</div>", unsafe_allow_html=True)
         
         # 提示信息

@@ -97,6 +97,53 @@ class Database:
                 )
             """)
             
+            # 密码重置表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS password_resets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    token TEXT UNIQUE NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    used BOOLEAN NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
+            
+            # 双因素认证表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_2fa (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER UNIQUE NOT NULL,
+                    secret TEXT NOT NULL,
+                    enabled BOOLEAN NOT NULL DEFAULT 0,
+                    backup_codes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
+            
+            # 登录失败尝试表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS login_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL,
+                    ip_address TEXT,
+                    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # 用户锁定表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_locks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    locked_until TIMESTAMP NOT NULL,
+                    reason TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             # 创建索引
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
@@ -104,6 +151,10 @@ class Database:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_login_logs_logged_at ON login_logs(logged_at)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON user_sessions(token)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_resets_token ON password_resets(token)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_2fa_user_id ON user_2fa(user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_attempts_username ON login_attempts(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_locks_username ON user_locks(username)")
             
             # 插入默认管理员账户
             cursor.execute("SELECT COUNT(*) FROM users")
