@@ -45,8 +45,11 @@ if 'last_update' not in st.session_state:
 
 # ==================== 导入认证服务 ====================
 try:
-    from src.auth.auth_service import AuthService, create_access_token
+    from src.auth.auth_service_sqlite import AuthService, create_access_token
     from src.auth.models import LoginRequest, UserRole
+    from src.database.db import init_db
+    # 初始化数据库
+    init_db()
     AUTH_ENABLED = True
 except Exception as e:
     print(f"⚠️ 认证模块加载失败：{e}")

@@ -1,12 +1,12 @@
 """
-用户认证 API 路由
+用户认证 API 路由（SQLite 版本）
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List
 
-from .auth_service import AuthService
-from .models import (
+from ..auth.auth_service_sqlite import AuthService
+from ..auth.models import (
     LoginRequest, RegisterRequest, TokenResponse,
     ChangePasswordRequest, User, UserRole
 )
@@ -35,7 +35,7 @@ async def register(request: RegisterRequest):
 
 @router.post("/login", response_model=TokenResponse, summary="用户登录")
 @handle_errors(default_return=None)
-async def login(request: LoginRequest):
+async def login(request: Request, login_request: LoginRequest):
     """
     用户登录
     
@@ -44,7 +44,11 @@ async def login(request: LoginRequest):
     
     返回 access_token 和用户信息
     """
-    user, token = auth_service.login(request)
+    # 获取 IP 地址和 User-Agent
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    
+    user, token = auth_service.login(login_request, ip_address, user_agent)
     
     return TokenResponse(
         access_token=token,
@@ -92,8 +96,7 @@ async def list_users(current_user: dict = Depends(require_role(UserRole.ADMIN)))
     
     返回不含密码的用户信息列表
     """
-    # 简化实现，实际应该从数据库查询所有用户
-    return []
+    return auth_service.get_all_users()
 
 
 @router.delete("/users/{user_id}", summary="删除用户（仅管理员）")
@@ -107,5 +110,38 @@ async def delete_user(
     
     - **user_id**: 用户 ID
     """
-    # TODO: 实现删除逻辑
+    auth_service.delete_user(user_id)
     return {"message": "用户已删除"}
+
+
+@router.put("/users/{user_id}/status", summary="更新用户状态（仅管理员）")
+@handle_errors(default_return={"message": "用户状态已更新"})
+async def update_user_status(
+    user_id: int,
+    is_active: bool,
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
+):
+    """
+    更新用户状态（启用/禁用）
+    
+    - **user_id**: 用户 ID
+    - **is_active**: 是否启用
+    """
+    auth_service.update_user_status(user_id, is_active)
+    return {"message": "用户状态已更新"}
+
+
+@router.get("/login-logs", summary="查看登录日志（仅管理员）")
+@handle_errors(default_return=[])
+async def get_login_logs(
+    user_id: int = None,
+    limit: int = 100,
+    current_user: dict = Depends(require_role(UserRole.ADMIN))
+):
+    """
+    查看登录日志
+    
+    - **user_id**: 可选，筛选特定用户
+    - **limit**: 返回数量限制（默认 100）
+    """
+    return auth_service.get_login_logs(user_id, limit)
