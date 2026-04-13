@@ -1,0 +1,66 @@
+{
+  "notifications": {
+    "enabled": true,
+    
+    "wecom_bot": {
+      "enabled": true,
+      "webhook_url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+    },
+    
+    "feishu_bot": {
+      "enabled": false,
+      "webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_HOOK",
+      "secret": ""
+    },
+    
+    "email": {
+      "enabled": false,
+      "smtp_server": "smtp.qq.com",
+      "smtp_port": 587,
+      "username": "your_email@qq.com",
+      "password": "YOUR_AUTH_CODE",
+      "use_tls": true,
+      "recipients": [
+        "recipient1@example.com",
+        "recipient2@example.com"
+      ]
+    },
+    
+    "sms": {
+      "enabled": false,
+      "secret_id": "YOUR_SECRET_ID",
+      "secret_key": "YOUR_SECRET_KEY",
+      "app_id": "YOUR_APP_ID",
+      "template_id": "YOUR_TEMPLATE_ID",
+      "recipients": [
+        "13800138000",
+        "13900139000"
+      ]
+    },
+    
+    "webhook": {
+      "enabled": false,
+      "url": "https://your-server.com/api/alerts",
+      "method": "POST",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN",
+        "Content-Type": "application/json"
+      }
+    }
+  },
+  
+  "notification_rules": {
+    "fall_confirmed": {
+      "channels": ["wecom_bot", "feishu_bot", "email", "sms"],
+      "immediate": true
+    },
+    "fall_suspected": {
+      "channels": ["wecom_bot", "feishu_bot", "email"],
+      "immediate": true
+    },
+    "system_error": {
+      "channels": ["wecom_bot", "email"],
+      "immediate": false
+    }
+  }
+}
