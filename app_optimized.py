@@ -204,6 +204,19 @@ else:
         
         selected_menu = st.radio("导航", menu_options, label_visibility="collapsed")
         
+        # 管理员快捷入口
+        if user_role == "admin":
+            st.divider()
+            st.markdown("### 🎛️ 管理后台")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📊 仪表板", use_container_width=True, key="dash_btn"):
+                    st.switch_page("pages/system_dashboard.py")
+            with col2:
+                if st.button("👥 用户管理", use_container_width=True, key="user_btn"):
+                    st.switch_page("pages/user_management.py")
+        
         st.divider()
         
         # 登出按钮
