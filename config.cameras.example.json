@@ -1,0 +1,45 @@
+{
+  "cameras": [
+    {
+      "id": "cam1",
+      "name": "客厅摄像头",
+      "source": 0,
+      "camera_type": "usb",
+      "enabled": true,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "location": "客厅东侧"
+    },
+    {
+      "id": "cam2",
+      "name": "走廊 IP 摄像头",
+      "source": "rtsp://192.168.1.100:554/stream1",
+      "camera_type": "rtsp",
+      "enabled": true,
+      "width": 1920,
+      "height": 1080,
+      "fps": 25,
+      "location": "走廊"
+    },
+    {
+      "id": "cam3",
+      "name": "门口摄像头",
+      "source": "http://192.168.1.101:8080/video",
+      "camera_type": "http",
+      "enabled": false,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "location": "大门口"
+    }
+  ],
+  
+  "settings": {
+    "auto_start": true,
+    "reconnect_on_failure": true,
+    "reconnect_interval_seconds": 30,
+    "frame_buffer_size": 10,
+    "default_view_mode": "2x2"
+  }
+}
