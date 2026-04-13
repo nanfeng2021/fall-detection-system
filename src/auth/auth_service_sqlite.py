@@ -11,6 +11,8 @@ from pathlib import Path
 import os
 
 from ..database.db import get_db_connection
+from ..security.login_lock import get_lock_manager
+from ..security.two_factor_auth import get_two_factor_auth
 from .models import User, UserRole, TokenData, LoginRequest, RegisterRequest
 from ..utils.config import get_config
 from ..utils.error_handler import handle_errors, AppException
@@ -27,7 +29,8 @@ class AuthService:
     """用户认证服务类（SQLite 版本）"""
     
     def __init__(self):
-        pass
+        self.lock_manager = get_lock_manager()
+        self.two_factor = get_two_factor_auth()
     
     def _hash_password(self, password: str) -> str:
         """对密码进行哈希加密"""
@@ -77,10 +80,16 @@ class AuthService:
             )
     
     @handle_errors(default_return=None)
-    def login(self, request: LoginRequest, ip_address: str = None, user_agent: str = None) -> Tuple[User, str]:
+    def login(self, request: LoginRequest, ip_address: str = None, user_agent: str = None, 
+              two_factor_code: str = None) -> Tuple[User, str]:
         """用户登录"""
         with get_db_connection() as conn:
             cursor = conn.cursor()
+            
+            # 检查是否被锁定
+            is_locked, locked_until = self.lock_manager.is_locked(request.username)
+            if is_locked:
+                raise AppException(f"账户已被锁定，请在 {locked_until.strftime('%H:%M')} 后重试", status_code=403)
             
             # 查找用户
             cursor.execute("""
@@ -94,18 +103,37 @@ class AuthService:
             if not user_data:
                 # 记录失败日志
                 self._log_login_attempt(None, request.username, ip_address, user_agent, False, "用户不存在")
+                self.lock_manager.record_attempt(request.username, ip_address)
                 raise AppException("用户名或密码错误", status_code=401)
             
             # 验证密码
             if not self._verify_password(request.password, user_data["password_hash"]):
                 # 记录失败日志
                 self._log_login_attempt(user_data["id"], user_data["username"], ip_address, user_agent, False, "密码错误")
+                self.lock_manager.record_attempt(user_data["username"], ip_address)
+                
+                # 检查是否应该锁定
+                if self.lock_manager.check_and_lock(user_data["username"]):
+                    self.lock_user_account(user_data["username"])
+                
                 raise AppException("用户名或密码错误", status_code=401)
             
             # 检查用户是否激活
             if not user_data["is_active"]:
                 self._log_login_attempt(user_data["id"], user_data["username"], ip_address, user_agent, False, "账户已禁用")
                 raise AppException("账户已被禁用", status_code=403)
+            
+            # 检查是否需要 2FA 验证
+            if self.two_factor.is_2fa_enabled(user_data["id"]):
+                if not two_factor_code:
+                    raise AppException("需要双因素认证代码", status_code=403, metadata={"requires_2fa": True})
+                
+                # 验证 2FA 代码
+                if not self.two_factor.verify_code(user_data["id"], two_factor_code):
+                    # 尝试备用码
+                    if not self.two_factor.verify_backup_code(user_data["id"], two_factor_code):
+                        self._log_login_attempt(user_data["id"], user_data["username"], ip_address, user_agent, False, "2FA 验证失败")
+                        raise AppException("双因素认证代码错误", status_code=401)
             
             # 更新最后登录时间
             now = datetime.now()
@@ -125,6 +153,9 @@ class AuthService:
             
             # 记录成功日志
             self._log_login_attempt(user_data["id"], user_data["username"], ip_address, user_agent, True)
+            
+            # 清除失败尝试记录
+            self.lock_manager.unlock_user(user_data["username"])
             
             # 返回用户信息和 Token
             user = User(
@@ -152,6 +183,11 @@ class AuthService:
                 """, (user_id, username, ip_address, user_agent, success, failure_reason))
         except Exception as e:
             print(f"⚠️ 记录登录日志失败：{e}")
+    
+    def lock_user_account(self, username: str):
+        """锁定用户账户"""
+        self.lock_manager.lock_user(username, duration_minutes=30, reason="连续登录失败")
+        print(f"🔒 用户 {username} 已被锁定 30 分钟")
     
     def _create_session(self, user_id: int, token: str, 
                        ip_address: Optional[str], user_agent: Optional[str]):
