@@ -1,0 +1,104 @@
+# Fall Detection System - Default Configuration
+# 默认配置，生产环境请复制为 production.yaml 并修改
+
+app:
+  name: "Fall Detection System"
+  version: "1.6.0"
+  environment: development
+  debug: true
+  log_level: INFO
+
+server:
+  host: "0.0.0.0"
+  port: 8501
+  workers: 4
+  timeout: 30
+  cors_origins:
+    - "http://localhost:8501"
+    - "http://43.134.43.119:8501"
+
+database:
+  url: "sqlite:///data/database.db"
+  pool_size: 10
+  echo: false
+
+auth:
+  jwt_secret: "${JWT_SECRET}"
+  jwt_algorithm: "HS256"
+  jwt_expire_minutes: 30
+  default_admin:
+    username: "admin"
+    password: "admin123"
+    email: "admin@example.com"
+
+camera:
+  default_fps: 30
+  max_cameras: 16
+  reconnect_interval: 30
+  frame_buffer_size: 10
+  sources: []
+  # 示例配置:
+  # - id: "cam1"
+  #   name: "客厅摄像头"
+  #   source: 0
+  #   type: "usb"
+  #   enabled: true
+  # - id: "cam2"
+  #   name: "走廊 IP 摄像头"
+  #   source: "rtsp://192.168.1.100:554/stream"
+  #   type: "rtsp"
+  #   enabled: true
+
+detection:
+  voxel_size: 0.05
+  height_drop_threshold: 0.3
+  confidence_threshold: 0.7
+  interval_ms: 100
+  alert_cooldown_seconds: 30
+
+notification:
+  enabled: true
+  
+  wechat:
+    enabled: false
+    bot_key: ""
+    corp_id: ""
+    agent_id: ""
+  
+  sms:
+    enabled: false
+    provider: "tencent"
+    api_key: ""
+    phone_numbers: []
+  
+  email:
+    enabled: false
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+    smtp_user: ""
+    smtp_password: ""
+    from_email: ""
+    recipients: []
+  
+  feishu:
+    enabled: false
+    webhook_url: ""
+
+storage:
+  recording_path: "data/recordings"
+  export_path: "data/exports"
+  cache_path: "data/cache"
+  max_recording_days: 7
+  cleanup_schedule: "0 3 * * 0"  # 每周日 3:00
+
+monitoring:
+  metrics_enabled: true
+  health_check_interval: 60
+  prometheus_port: 9090
+
+security:
+  rate_limit_per_minute: 60
+  allowed_ips: []
+  ssl_enabled: false
+  ssl_cert_path: ""
+  ssl_key_path: ""

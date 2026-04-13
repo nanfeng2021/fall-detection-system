@@ -1,0 +1,105 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fall-detection-system"
+version = "1.6.0"
+description = "室内人体摔倒实时预警系统 - 支持多摄像头监控、智能检测、多渠道告警"
+authors = [
+    {name = "Nanfeng", email = "nanfeng@example.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+keywords = [
+    "fall-detection",
+    "computer-vision",
+    "surveillance",
+    "healthcare",
+    "ai",
+    "streamlit"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Healthcare Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "streamlit>=1.28.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "pydantic>=2.5.0",
+    "pyjwt>=2.8.0",
+    "bcrypt>=4.1.0",
+    "opencv-python-headless>=4.8.0",
+    "numpy>=1.24.0",
+    "open3d>=0.17.0",
+    "loguru>=0.7.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "aiohttp>=3.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+]
+
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.4.0",
+]
+
+deployment = [
+    "gunicorn>=21.2.0",
+    "supervisor>=4.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/nanfeng2021/fall-detection-system"
+Documentation = "https://github.com/nanfeng2021/fall-detection-system/docs"
+Repository = "https://github.com/nanfeng2021/fall-detection-system.git"
+Issues = "https://github.com/nanfeng2021/fall-detection-system/issues"
+
+[project.scripts]
+fall-detection = "fall_detection.app.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["fall_detection*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+addopts = "-v --cov=fall_detection --cov-report=html"
