@@ -572,11 +572,11 @@ with tab3:
         
         # 过滤数据
         if filter_level == "全部":
-            filtered_alerts = st.session_state.alert_history
+            filtered_alerts = [a for a in st.session_state.alert_history if 'type' in a and 'level' in a]
         elif filter_level == "确认摔倒":
-            filtered_alerts = [a for a in st.session_state.alert_history if a['level'] == 'critical']
+            filtered_alerts = [a for a in st.session_state.alert_history if a.get('level') == 'critical' and 'type' in a]
         else:
-            filtered_alerts = [a for a in st.session_state.alert_history if a['level'] == 'warning']
+            filtered_alerts = [a for a in st.session_state.alert_history if a.get('level') == 'warning' and 'type' in a]
         
         # 显示表格
         st.dataframe(
@@ -596,12 +596,12 @@ with tab3:
         # 导出按钮
         csv_data = "\n".join([
             ",".join([
-                str(a['timestamp']),
-                a['type'],
-                str(a['cluster_id']),
-                a['message'],
-                f"{a['confidence']:.2f}",
-                a['level']
+                str(a.get('timestamp', '')),
+                a.get('type', 'unknown'),
+                str(a.get('cluster_id', '')),
+                a.get('message', ''),
+                f"{a.get('confidence', 0):.2f}",
+                a.get('level', '')
             ])
             for a in filtered_alerts
         ])
